@@ -12,6 +12,11 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
     @State private var currentPan: CGSize = .zero
     @State private var scale: CGFloat = 1.0
     @State private var currentScale: CGFloat = 1.0
+    
+    // Node and Edge Zooming
+    @State private var nodeScaleFactor: CGFloat = 1.0
+    @State private var fontScaleFactor: CGFloat = 1.0
+    @State private var edgeScaleFactor: CGFloat = 1.0 
 
     // Node dragging state
     @State private var draggedNodeIndex: Int? = nil
@@ -140,7 +145,6 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
     public var body: some View {
         VStack {
             
-            
             TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !simulation.isRunning)) { timeline in
                 Canvas { context, size in
                     // Capture canvas size for gesture coordinate conversion
@@ -191,8 +195,8 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
                         let rect = CGRect(
                             x: CGFloat(pos.x) - radius,
                             y: CGFloat(pos.y) - radius,
-                            width: node.size,
-                            height: node.size
+                            width: node.size * nodeScaleFactor,
+                            height: node.size * nodeScaleFactor
                         )
                         transformedContext.fill(Circle().path(in: rect), with: .color(node.color))
 
@@ -207,6 +211,7 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
                                 .font(.caption2)
                                 .foregroundColor(.primary)
                             transformedContext.draw(text, at: labelPoint, anchor: .bottomLeading)
+                                
                         }
                     }
                 }
@@ -238,6 +243,14 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
                     }
                 }, label: {
                     Image(systemName: "arrow.counterclockwise")
+                })
+                
+                
+                
+                Stepper( value: $nodeScaleFactor,
+                         step: 0.1,
+                         label: {
+                    Text("Node Size")
                 })
             }
             .buttonStyle(.borderedProminent)
