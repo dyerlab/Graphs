@@ -13,6 +13,10 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
     @State private var scale: CGFloat = 1.0
     @State private var currentScale: CGFloat = 1.0
 
+    // Node dragging state
+    @State private var draggedNodeIndex: Int? = nil
+    @State private var canvasSize: CGSize = .zero
+
     let nodes: [GraphNode<ID>]
     let edges: [(source: ID, target: ID, distance: Float)]
 
@@ -39,19 +43,86 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
         self.edges = edges.map { ($0.source, $0.target, defaultDistance) }
     }
 
+    // MARK: - Coordinate Conversion
+
+    /// Convert screen coordinates to simulation coordinates (accounting for pan/zoom)
+    private func screenToSimulation(_ point: CGPoint, in size: CGSize) -> SIMD2<Float> {
+        let totalScale = scale * currentScale
+        let totalPan = CGSize(
+            width: panOffset.width + currentPan.width,
+            height: panOffset.height + currentPan.height
+        )
+
+        // Reverse the transforms: remove pan, then scale, relative to center
+        let x = (point.x - size.width / 2) / totalScale + size.width / 2 - totalPan.width
+        let y = (point.y - size.height / 2) / totalScale + size.height / 2 - totalPan.height
+
+        // Convert from canvas coords (centered at size/2) to simulation coords (centered at 0)
+        return SIMD2<Float>(Float(x) - Float(size.width / 2), Float(y) - Float(size.height / 2))
+    }
+
+    /// Find the node index nearest to a simulation position, within a threshold
+    private func findNode(near simPos: SIMD2<Float>, threshold: Float = 20) -> Int? {
+        var closestIndex: Int? = nil
+        var closestDist: Float = threshold
+
+        for node in nodes {
+            guard let idx = simulation.index(of: node.id),
+                  idx < simulation.state.nodeCount else { continue }
+
+            let nodePos = simulation.state[position: idx]
+            let dist = simd_distance(nodePos, simPos)
+
+            // Use the node's radius as part of the hit detection
+            let hitRadius = max(Float(node.size / 2), threshold)
+            if dist < hitRadius && dist < closestDist {
+                closestIndex = idx
+                closestDist = dist
+            }
+        }
+        return closestIndex
+    }
+
     // MARK: - Gestures
 
-    private var panGesture: some Gesture {
-        DragGesture()
+    private var dragGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
             .onChanged { value in
-                currentPan = value.translation
+                let simPos = screenToSimulation(value.location, in: canvasSize)
+
+                // On first movement, determine if we're dragging a node or panning
+                if value.translation == .zero || (draggedNodeIndex == nil && currentPan == .zero) {
+                    if let nodeIdx = findNode(near: screenToSimulation(value.startLocation, in: canvasSize)) {
+                        draggedNodeIndex = nodeIdx
+                        simulation.pin(nodeAt: nodeIdx, to: simPos)
+                        if !simulation.isRunning {
+                            simulation.start()
+                        }
+                    }
+                }
+
+                if let nodeIdx = draggedNodeIndex {
+                    // Dragging a node
+                    simulation.pin(nodeAt: nodeIdx, to: simPos)
+                } else {
+                    // Panning the canvas
+                    currentPan = value.translation
+                }
             }
             .onEnded { value in
-                panOffset = CGSize(
-                    width: panOffset.width + value.translation.width,
-                    height: panOffset.height + value.translation.height
-                )
-                currentPan = .zero
+                if let nodeIdx = draggedNodeIndex {
+                    // Release the node - unpin and let it settle
+                    simulation.unpin(nodeAt: nodeIdx)
+                    simulation.reheat(to: 0.3)
+                    draggedNodeIndex = nil
+                } else {
+                    // Commit pan
+                    panOffset = CGSize(
+                        width: panOffset.width + value.translation.width,
+                        height: panOffset.height + value.translation.height
+                    )
+                    currentPan = .zero
+                }
             }
     }
 
@@ -72,6 +143,13 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
             
             TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !simulation.isRunning)) { timeline in
                 Canvas { context, size in
+                    // Capture canvas size for gesture coordinate conversion
+                    DispatchQueue.main.async {
+                        if canvasSize != size {
+                            canvasSize = size
+                        }
+                    }
+
                     // Trigger simulation tick
                     simulation.tick()
 
@@ -133,7 +211,8 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
                     }
                 }
             }
-            .gesture(panGesture)
+            .contentShape(Rectangle())
+            .gesture(dragGesture)
             .gesture(zoomGesture)
             .onAppear {
                 guard !isInitialized else { return }
