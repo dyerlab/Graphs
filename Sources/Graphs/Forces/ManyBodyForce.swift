@@ -22,9 +22,9 @@ public func applyManyBodyForce(
             var distSq = dx * dx + dy * dy
 
             // Jiggle coincident nodes
-            if distSq < 1e-6 {
-                dx = (Float.random(in: 0..<1) - 0.5) * 1e-3
-                dy = (Float.random(in: 0..<1) - 0.5) * 1e-3
+            if distSq < GraphConstants.minDistanceSquared {
+                dx = (Float.random(in: 0..<1) - 0.5) * GraphConstants.jiggleMagnitude
+                dy = (Float.random(in: 0..<1) - 0.5) * GraphConstants.jiggleMagnitude
                 distSq = dx * dx + dy * dy
             }
 

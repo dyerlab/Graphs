@@ -11,16 +11,16 @@ public func applyEdgeForce(to state: inout SimulationState) {
         var dy = state.y[j] - state.y[i]
         var dist = sqrt(dx * dx + dy * dy)
 
-        if dist < 1e-6 { dist = 1e-6 }
+        if dist < GraphConstants.minDistance { dist = GraphConstants.minDistance }
 
-        let displacement = (dist - edge.distance) / dist * edge.strength * state.alpha
+        let displacement = (dist - edge.distance) / dist * edge.weight * state.alpha
         dx *= displacement
         dy *= displacement
 
         // Apply half to each endpoint
-        state.vx[j] -= dx * 0.5
-        state.vy[j] -= dy * 0.5
-        state.vx[i] += dx * 0.5
-        state.vy[i] += dy * 0.5
+        state.vx[j] -= dx * GraphConstants.forceDistributionFactor
+        state.vy[j] -= dy * GraphConstants.forceDistributionFactor
+        state.vx[i] += dx * GraphConstants.forceDistributionFactor
+        state.vy[i] += dy * GraphConstants.forceDistributionFactor
     }
 }

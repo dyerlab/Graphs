@@ -15,7 +15,7 @@ public struct SimulationState: Sendable, Equatable {
     public var fixedX: [Float?]
     public var fixedY: [Float?]
 
-    // Graph structure
+    // Graph structure (index-based edges for performance)
     public var edges: [Edge]
 
     // Simulation activity level

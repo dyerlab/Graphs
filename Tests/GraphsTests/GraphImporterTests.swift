@@ -26,8 +26,9 @@ import simd
     #expect(data.nodes[1].size == 8.0)
     #expect(data.nodes[1].color == .green) // colorCode 2 -> green
 
-    #expect(data.edges[0].source == "nodeA")
-    #expect(data.edges[0].target == "nodeB")
+    // Edge now uses integer indices
+    #expect(data.nodes[data.edges[0].source].label == "nodeA")
+    #expect(data.nodes[data.edges[0].target].label == "nodeB")
     #expect(data.edges[0].distance == 15.0)
 }
 
@@ -58,14 +59,14 @@ import simd
     let data = try parseGraph(content)
 
     #expect(data.nodes.count == 2)
-    #expect(data.nodes[0].id == "alpha")
     #expect(data.nodes[0].label == "alpha")
     #expect(data.nodes[0].size == 12.0)
     #expect(data.nodes[0].color == .blue)
 
     #expect(data.edges.count == 1)
-    #expect(data.edges[0].source == "alpha")
-    #expect(data.edges[0].target == "beta")
+    // Edge now uses integer indices
+    #expect(data.nodes[data.edges[0].source].label == "alpha")
+    #expect(data.nodes[data.edges[0].target].label == "beta")
     #expect(data.edges[0].distance == 10.0)
 }
 
@@ -80,21 +81,23 @@ import simd
     #expect(anthro != nil)
     #expect(anthro?.color == .blue) // colorCode 1 -> blue
 
-    // Check a known edge
-    let edge = data.edges.first { $0.source == "anthro" && $0.target == "envs" }
+    // Check a known edge by finding the node indices first
+    let anthroIdx = data.nodeIndex(forLabel: "anthro")
+    let envsIdx = data.nodeIndex(forLabel: "envs")
+    #expect(anthroIdx != nil)
+    #expect(envsIdx != nil)
+
+    let edge = data.edges.first { $0.source == anthroIdx && $0.target == envsIdx }
     #expect(edge != nil)
     #expect(edge!.distance > 18.0 && edge!.distance < 19.0)
 }
 
 @Test @MainActor func simulateVCUGraph() async throws {
     let graphData = try loadBundledGraph(named: "vcu")
-    let nodes = graphData.nodes
-    let edges = graphData.edges
 
-    // Create simulation
+    // Create simulation using load()
     let simulation = GraphSimulation()
-    simulation.setNodes(nodes.map(\.id))
-    simulation.setEdges(edges)
+    simulation.load(graphData)
 
     #expect(simulation.state.nodeCount == 44)
     #expect(simulation.state.edges.count == 78)
@@ -114,16 +117,21 @@ import simd
     // Check that connected nodes are somewhat closer than unconnected ones
     // (This is a sanity check, not a rigorous test)
 
+    // Helper to find node index by label
+    func indexOfNode(label: String) -> Int? {
+        simulation.index(forLabel: label)
+    }
+
     // Find two connected nodes
-    if let mathAppliedIdx = simulation.index(of: "math_applied"),
-       let mathBioIdx = simulation.index(of: "math_bio") {
+    if let mathAppliedIdx = indexOfNode(label: "math_applied"),
+       let mathBioIdx = indexOfNode(label: "math_bio") {
         let pos1 = simulation.state[position: mathAppliedIdx]
         let pos2 = simulation.state[position: mathBioIdx]
         let connectedDist = simd_distance(pos1, pos2)
 
         // Find a likely unconnected pair (anthro and compSci have no direct edge)
-        if let anthroIdx = simulation.index(of: "anthro"),
-           let compSciIdx = simulation.index(of: "compSci") {
+        if let anthroIdx = indexOfNode(label: "anthro"),
+           let compSciIdx = indexOfNode(label: "compSci") {
             let pos3 = simulation.state[position: anthroIdx]
             let pos4 = simulation.state[position: compSciIdx]
             let unconnectedDist = simd_distance(pos3, pos4)
@@ -139,7 +147,7 @@ import simd
     print("  Alpha: \(simulation.state.alpha)")
     print("  Sample positions:")
     for label in ["anthro", "biol", "compSci", "math_applied", "socy"] {
-        if let idx = simulation.index(of: label) {
+        if let idx = indexOfNode(label: label) {
             let pos = simulation.state[position: idx]
             print("    \(label): (\(pos.x), \(pos.y))")
         }

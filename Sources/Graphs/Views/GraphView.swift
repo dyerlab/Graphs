@@ -2,7 +2,7 @@ import SwiftUI
 import simd
 
 /// A SwiftUI view that renders a force-directed graph.
-public struct GraphView<ID: Hashable & Sendable>: View {
+public struct GraphView: View {
     @Bindable var simulation: GraphSimulation
     @State private var isInitialized = false
 
@@ -18,29 +18,11 @@ public struct GraphView<ID: Hashable & Sendable>: View {
     @State private var draggedNodeIndex: Int? = nil
     @State private var canvasSize: CGSize = .zero
 
-    let nodes: [Node<ID>]
-    let edges: [(source: ID, target: ID, distance: Float)]
+    let graph: PopulationGraph
 
-    public init(
-        simulation: GraphSimulation,
-        nodes: [Node<ID>],
-        edges: [(source: ID, target: ID, distance: Float)]
-    ) {
+    public init(graph: PopulationGraph, simulation: GraphSimulation) {
         self.simulation = simulation
-        self.nodes = nodes
-        self.edges = edges
-    }
-
-    /// Convenience initializer with default edge distances.
-    public init(
-        simulation: GraphSimulation,
-        nodes: [Node<ID>],
-        edges: [(source: ID, target: ID)],
-        defaultDistance: Float = 30.0
-    ) {
-        self.simulation = simulation
-        self.nodes = nodes
-        self.edges = edges.map { ($0.source, $0.target, defaultDistance) }
+        self.graph = graph
     }
 
     // MARK: - Coordinate Conversion
@@ -62,21 +44,20 @@ public struct GraphView<ID: Hashable & Sendable>: View {
     }
 
     /// Find the node index nearest to a simulation position, within a threshold
-    private func findNode(near simPos: SIMD2<Float>, threshold: Float = 20) -> Int? {
+    private func findNode(near simPos: SIMD2<Float>, threshold: Float = GraphConstants.defaultNodeFindThreshold) -> Int? {
         var closestIndex: Int? = nil
         var closestDist: Float = threshold
 
-        for node in nodes {
-            guard let idx = simulation.index(of: node.id),
-                  idx < simulation.state.nodeCount else { continue }
+        for (index, node) in graph.nodes.enumerated() {
+            guard index < simulation.state.nodeCount else { continue }
 
-            let nodePos = simulation.state[position: idx]
+            let nodePos = simulation.state[position: index]
             let dist = simd_distance(nodePos, simPos)
 
             // Use the node's radius as part of the hit detection
             let hitRadius = max(Float(node.size / 2), threshold)
             if dist < hitRadius && dist < closestDist {
-                closestIndex = idx
+                closestIndex = index
                 closestDist = dist
             }
         }
@@ -89,7 +70,7 @@ public struct GraphView<ID: Hashable & Sendable>: View {
         simulation.config.manyBodyStrength = settings.repulsionStrength
         simulation.config.centerStrength = settings.centerStrength
         // Reheat to apply changes
-        simulation.reheat(to: 0.5)
+        simulation.reheat(to: GraphConstants.moderateReheatAlpha)
     }
 
     // MARK: - Gestures
@@ -122,7 +103,7 @@ public struct GraphView<ID: Hashable & Sendable>: View {
                 if let nodeIdx = draggedNodeIndex {
                     // Release the node - unpin and let it settle
                     simulation.unpin(nodeAt: nodeIdx)
-                    simulation.reheat(to: 0.3)
+                    simulation.reheat(to: GraphConstants.reheatAlphaValue)
                     draggedNodeIndex = nil
                 } else {
                     // Commit pan
@@ -148,7 +129,7 @@ public struct GraphView<ID: Hashable & Sendable>: View {
 
     public var body: some View {
         VStack {
-            TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !simulation.isRunning)) { timeline in
+            TimelineView(.animation(minimumInterval: GraphConstants.frameInterval, paused: !simulation.isRunning)) { timeline in
                 Canvas { context, size in
                     // Capture canvas size for gesture coordinate conversion
                     DispatchQueue.main.async {
@@ -190,11 +171,10 @@ public struct GraphView<ID: Hashable & Sendable>: View {
                     }
 
                     // Draw nodes and labels
-                    for node in nodes {
-                        guard let nodeIndex = simulation.index(of: node.id),
-                              nodeIndex < simulation.state.nodeCount else { continue }
+                    for (index, node) in graph.nodes.enumerated() {
+                        guard index < simulation.state.nodeCount else { continue }
 
-                        let pos = simulation.state[position: nodeIndex] + center
+                        let pos = simulation.state[position: index] + center
                         let scaledSize = node.size * settings.nodeScaleFactor
                         let radius = scaledSize / 2
                         let rect = CGRect(
@@ -209,13 +189,13 @@ public struct GraphView<ID: Hashable & Sendable>: View {
 
                         // Draw label if enabled
                         if settings.showLabels {
-                            let labelOffset: CGFloat = radius + 2
+                            let labelOffset: CGFloat = radius + GraphConstants.labelOffset
                             let labelPoint = CGPoint(
                                 x: CGFloat(pos.x) + labelOffset,
                                 y: CGFloat(pos.y) - labelOffset
                             )
 
-                            let fontSize: CGFloat = 10 * settings.fontScaleFactor
+                            let fontSize: CGFloat = GraphConstants.baseLabelFontSize * settings.fontScaleFactor
                             let text = Text(node.label)
                                 .font(.system(size: fontSize))
                                 .foregroundColor(.primary)
@@ -231,36 +211,9 @@ public struct GraphView<ID: Hashable & Sendable>: View {
                 guard !isInitialized else { return }
                 isInitialized = true
 
-                simulation.setNodes(nodes.map(\.id))
-                simulation.setEdges(edges)
+                simulation.load(graph)
                 simulation.start()
             }
-
-            // Toolbar
-            /*
-            HStack {
-                Button(action: {
-                    showInspector.toggle()
-                }, label: {
-                    Image(systemName: "slider.horizontal.3")
-                })
-
-                Button(action: {
-                    settings.showLabels.toggle()
-                }, label: {
-                    Image(systemName: settings.showLabels ? "text.bubble.fill" : "text.bubble")
-                })
-
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        settings.resetView()
-                    }
-                }, label: {
-                    Image(systemName: "arrow.counterclockwise")
-                })
-            }
-            .buttonStyle(.borderedProminent)
-             */
         }
         .padding()
         .inspector(isPresented: $showInspector) {
@@ -285,65 +238,30 @@ public struct GraphView<ID: Hashable & Sendable>: View {
 
 #Preview("Simple Triangle") {
     let simulation = GraphSimulation()
-    let nodes = [
-        Node(id: "A", label: "A", size: 20, color: .red),
-        Node(id: "B", label: "B", size: 20, color: .green),
-        Node(id: "C", label: "C", size: 20, color: .blue)
-    ]
-    let edges: [(source: String, target: String, distance: Float)] = [
-        ("A", "B", 50),
-        ("B", "C", 50),
-        ("C", "A", 50)
-    ]
+    let graph = PopulationGraph.triangleGraph
 
-    return GraphView(
-        simulation: simulation,
-        nodes: nodes,
-        edges: edges
-    )
-    .frame(width: 400, height: 400)
-    .background(Color.black.opacity(0.05))
+    GraphView(graph: graph, simulation: simulation)
+        .frame(width: 400, height: 400)
+        .background(Color.black.opacity(0.05))
 }
 
 #Preview("Star Graph") {
     let simulation = GraphSimulation()
-    let center = Node(id: "center", label: "Center", size: 30, color: .orange)
-    let satellites = (1...6).map { i in
-        Node(id: "node\(i)", label: "N\(i)", size: 15, color: .blue)
-    }
-    let nodes = [center] + satellites
-    let edges: [(source: String, target: String, distance: Float)] = satellites.map { satellite in
-        ("center", satellite.id, Float(40))
-    }
+    let graph = PopulationGraph.starGraph
 
-    return GraphView(
-        simulation: simulation,
-        nodes: nodes,
-        edges: edges
-    )
-    .frame(width: 400, height: 400)
-    .background(Color.black.opacity(0.05))
+    GraphView(graph: graph, simulation: simulation)
+        .frame(width: 400, height: 400)
+        .background(Color.black.opacity(0.05))
 }
 
 #Preview("VCU Network") {
     let simulation = GraphSimulation()
 
-    // Load VCU graph from bundle
-    guard let data = try? loadBundledGraph(named: "vcu") else {
-        return AnyView(Text("Failed to load vcu.pgraph"))
+    if let graph = try? loadBundledGraph(named: "vcu") {
+        GraphView(graph: graph, simulation: simulation)
+            .frame(width: 800, height: 600)
+            .background(Color.black.opacity(0.05))
+    } else {
+        Text("Failed to load VCU graph data.")
     }
-
-    let nodes = data.nodes
-    let edges = data.edges
-
-    return AnyView(
-        GraphView(
-            simulation: simulation,
-            nodes: nodes,
-            edges: edges
-        )
-        .frame(width: 800, height: 600)
-        .background(Color.black.opacity(0.05))
-    )
 }
-

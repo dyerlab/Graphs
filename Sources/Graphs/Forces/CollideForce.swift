@@ -16,9 +16,9 @@ public func applyCollideForce(
             var dy = state.y[j] - state.y[i]
             let distSq = dx * dx + dy * dy
 
-            if distSq < radiusSq && distSq > 1e-6 {
+            if distSq < radiusSq && distSq > GraphConstants.minDistanceSquared {
                 let dist = sqrt(distSq)
-                let overlap = (radius * 2 - dist) / dist * strength * 0.5
+                let overlap = (radius * 2 - dist) / dist * strength * GraphConstants.forceDistributionFactor
                 dx *= overlap
                 dy *= overlap
 

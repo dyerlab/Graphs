@@ -4,12 +4,9 @@ import Foundation
 
 @Test @MainActor func performanceVCUGraph() async throws {
     let graphData = try loadBundledGraph(named: "vcu")
-    let nodes = graphData.nodes
-    let edges = graphData.edges
 
     let simulation = GraphSimulation()
-    simulation.setNodes(nodes.map(\.id))
-    simulation.setEdges(edges)
+    simulation.load(graphData)
     simulation.start()
 
     // Warm up
@@ -49,19 +46,24 @@ import Foundation
     for nodeCount in sizes {
         // Create a synthetic graph with ~2 edges per node on average
         let edgeCount = nodeCount * 2
-        let ids = (0..<nodeCount).map { "node_\($0)" }
 
-        var edges: [(source: String, target: String, distance: Float)] = []
+        // Create nodes
+        let nodes = (0..<nodeCount).map { Node(label: "node_\($0)") }
+
+        // Create random edges using integer indices
+        var edges: [Edge] = []
         for _ in 0..<edgeCount {
             let i = Int.random(in: 0..<nodeCount)
             var j = Int.random(in: 0..<nodeCount)
             while j == i { j = Int.random(in: 0..<nodeCount) }
-            edges.append((ids[i], ids[j], Float.random(in: 10...50)))
+            edges.append(Edge(source: i, target: j, distance: Float.random(in: 10...50)))
         }
 
+        // Create a PopulationGraph with nodes and edges
+        let graph = PopulationGraph(nodes: nodes, edges: edges)
+
         let simulation = GraphSimulation()
-        simulation.setNodes(ids)
-        simulation.setEdges(edges)
+        simulation.load(graph)
         simulation.start()
 
         // Warm up

@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import simd
 
@@ -13,8 +14,8 @@ public final class GraphSimulation {
     // Simulation control
     public private(set) var isRunning: Bool = false
 
-    // Node ID mapping (user IDs to internal indices)
-    private var nodeIndex: [AnyHashable: Int] = [:]
+    // Reference to nodes for lookups (optional, for convenience methods)
+    private var nodes: [Node] = []
 
     public var isStable: Bool {
         state.alpha < config.alphaMin
@@ -25,47 +26,57 @@ public final class GraphSimulation {
         self.config = config
     }
 
-    // MARK: - Graph Mutation
+    // MARK: - Graph Loading
 
-    /// Set the nodes in the graph by their IDs.
+    /// Load a complete graph (nodes and active edge set).
     /// Positions are randomized; previous state is discarded.
-    public func setNodes<ID: Hashable>(_ ids: [ID]) {
-        nodeIndex.removeAll()
-        for (index, id) in ids.enumerated() {
-            nodeIndex[AnyHashable(id)] = index
-        }
-        state = SimulationState(nodeCount: ids.count)
+    public func load(_ graph: PopulationGraph) {
+        self.nodes = graph.nodes
+        state = SimulationState(nodeCount: graph.nodeCount)
+        state.edges = graph.edges
         randomizePositions()
     }
 
-    /// Set the edges between nodes.
-    /// Edges reference nodes by their IDs; invalid references are ignored.
-    public func setEdges<ID: Hashable>(
-        _ edges: [(source: ID, target: ID, distance: Float)]
-    ) {
-        state.edges = edges.compactMap { edge in
-            guard let source = nodeIndex[AnyHashable(edge.source)],
-                  let target = nodeIndex[AnyHashable(edge.target)] else {
-                return nil
-            }
-            return Edge(source: source, target: target, distance: edge.distance)
-        }
+    /// Set up nodes only (for manual edge management).
+    /// Positions are randomized; previous state is discarded.
+    public func setNodes(_ nodes: [Node]) {
+        self.nodes = nodes
+        state = SimulationState(nodeCount: nodes.count)
+        randomizePositions()
     }
 
-    /// Set edges with default distance.
-    public func setEdges<ID: Hashable>(_ edges: [(source: ID, target: ID)]) {
-        state.edges = edges.compactMap { edge in
-            guard let source = nodeIndex[AnyHashable(edge.source)],
-                  let target = nodeIndex[AnyHashable(edge.target)] else {
-                return nil
-            }
-            return Edge(source: source, target: target)
-        }
+    /// Set up with a specific node count (for programmatic use).
+    /// Positions are randomized; previous state is discarded.
+    public func setNodeCount(_ count: Int) {
+        self.nodes = []
+        state = SimulationState(nodeCount: count)
+        randomizePositions()
     }
 
-    /// Get the internal index for a node ID.
-    public func index<ID: Hashable>(of id: ID) -> Int? {
-        nodeIndex[AnyHashable(id)]
+    // MARK: - Edge Management
+
+    /// Set the edges directly (index-based).
+    /// Preserves node positions - use for switching edge sets.
+    public func setEdges(_ edges: [Edge]) {
+        state.edges = edges
+    }
+
+    /// Update edges from an EdgeSet.
+    /// Preserves node positions - use for switching edge sets.
+    public func updateEdgeSet(_ edgeSet: EdgeSet) {
+        state.edges = edgeSet.edges
+    }
+
+    // MARK: - Node Lookup
+
+    /// Get the index of a node by reference (requires nodes to be set via load or setNodes)
+    public func index(of node: Node) -> Int? {
+        nodes.firstIndex(of: node)
+    }
+
+    /// Get the index of a node by label (requires nodes to be set via load or setNodes)
+    public func index(forLabel label: String) -> Int? {
+        nodes.firstIndex { $0.label == label }
     }
 
     // MARK: - Simulation Control
@@ -76,8 +87,8 @@ public final class GraphSimulation {
         isRunning = true
 
         // Reheat if stable
-        if state.alpha < 0.1 {
-            state.alpha = 0.3
+        if state.alpha < GraphConstants.reheatAlphaThreshold {
+            state.alpha = GraphConstants.reheatAlphaValue
         }
     }
 
@@ -148,8 +159,8 @@ public final class GraphSimulation {
         state.y[index] = position.y
 
         // Reheat simulation
-        if state.alpha < 0.3 {
-            state.alpha = 0.3
+        if state.alpha < GraphConstants.reheatAlphaValue {
+            state.alpha = GraphConstants.reheatAlphaValue
         }
     }
 
@@ -170,7 +181,7 @@ public final class GraphSimulation {
 
     // MARK: - Helpers
 
-    private func randomizePositions(radius: Float = 100) {
+    private func randomizePositions(radius: Float = GraphConstants.initialPositionRadius) {
         for i in 0..<state.nodeCount {
             let angle = Float.random(in: 0..<(2 * .pi))
             let r = Float.random(in: 0..<radius)
