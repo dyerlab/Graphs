@@ -1,6 +1,6 @@
 # Graphs Package
 
-![](https://www.flickr.com/photo_download.gne?id=55057946587&secret=22a14e041a&size=c&source=photoPageEngagement)
+![](https://www.flickr.com/photo_download.gne?id=55060655654&secret=b9fc63ff3f&size=c&source=photoPageEngagement)
 
 A minimal, Swift-native **force-directed graph library** optimized for interactive use cases with small graphs (≤500 nodes). 
 
