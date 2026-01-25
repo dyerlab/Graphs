@@ -12,8 +12,37 @@
 
 import Foundation
 
-/// Applies spring forces along edges.
-/// Each edge acts as a spring with a rest length (distance) and strength.
+/// Applies spring forces along edges to pull connected nodes together.
+///
+/// Each edge acts as a spring with a rest length (``Edge/distance``) and strength
+/// (``Edge/weight``). Nodes closer than the rest length are pushed apart; nodes
+/// farther than the rest length are pulled together.
+///
+/// ## Overview
+///
+/// The edge force is essential for creating structure in the graph. Without it,
+/// the many-body repulsion would push all nodes apart indefinitely. The edge
+/// springs counteract this repulsion for connected nodes.
+///
+/// ## Physics Model
+///
+/// The force uses Hooke's law (F = -kx) where:
+/// - k is the spring constant (``Edge/weight``)
+/// - x is the displacement from rest length (current distance - ``Edge/distance``)
+///
+/// The force is scaled by the simulation's alpha value.
+///
+/// ## Complexity
+///
+/// O(E) where E is the number of edges.
+///
+/// - Parameter state: The simulation state to modify. Velocities are updated in place.
+///
+/// ## Example
+///
+/// ```swift
+/// applyEdgeForce(to: &state)
+/// ```
 public func applyEdgeForce(to state: inout SimulationState) {
     for edge in state.edges {
         let i = edge.source

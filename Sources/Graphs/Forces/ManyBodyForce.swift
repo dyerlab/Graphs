@@ -12,8 +12,40 @@
 
 import Foundation
 
-/// Applies repulsion (negative strength) or attraction (positive) between all node pairs.
-/// O(N^2) but fast for N < 500 due to simple memory access pattern.
+/// Applies a many-body force between all pairs of nodes.
+///
+/// This force causes nodes to repel (with negative strength) or attract (with
+/// positive strength) each other. It's the primary force that spreads nodes apart
+/// in a force-directed layout.
+///
+/// ## Overview
+///
+/// The force follows an inverse-square law similar to gravity or electrostatic
+/// force. The magnitude scales with the simulation's alpha value, causing the
+/// force to decrease as the simulation settles.
+///
+/// ## Complexity
+///
+/// O(N²) where N is the number of nodes. This implementation is optimized for
+/// small graphs (< 500 nodes) with a simple memory access pattern.
+///
+/// ## Coincident Nodes
+///
+/// When two nodes occupy the same position, a small random offset ("jiggle")
+/// is applied to break the symmetry and allow the nodes to separate.
+///
+/// - Parameters:
+///   - state: The simulation state to modify. Velocities are updated in place.
+///   - strength: The force strength. Negative values cause repulsion (typical),
+///     positive values cause attraction. Default is set via ``SimulationConfig``.
+///   - minDistance: Minimum distance for force calculations. Prevents extremely
+///     large forces when nodes are very close. Defaults to 1.0.
+///
+/// ## Example
+///
+/// ```swift
+/// applyManyBodyForce(to: &state, strength: -30.0)
+/// ```
 public func applyManyBodyForce(
     to state: inout SimulationState,
     strength: Float,

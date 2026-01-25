@@ -13,25 +13,86 @@
 import SwiftUI
 import simd
 
-/// A SwiftUI view that renders a force-directed graph.
+/// A SwiftUI view that renders an interactive force-directed graph.
+///
+/// `GraphView` provides a complete graph visualization with support for:
+/// - Animated force-directed layout
+/// - Node dragging and pinning
+/// - Pan and zoom navigation
+/// - Optional labels and customizable styling
+/// - An inspector panel for adjusting settings
+///
+/// ## Overview
+///
+/// The view renders nodes as colored circles and edges as lines. The simulation
+/// runs automatically, positioning nodes according to the configured forces.
+/// Users can interact with the graph by dragging nodes or panning/zooming the view.
+///
+/// ## Basic Usage
+///
+/// ```swift
+/// struct ContentView: View {
+///     let graph: PopulationGraph
+///     @State private var simulation = GraphSimulation()
+///
+///     var body: some View {
+///         GraphView(graph: graph, simulation: simulation)
+///     }
+/// }
+/// ```
+///
+/// ## Interaction
+///
+/// - **Drag nodes**: Click and drag a node to move it. The node is pinned during
+///   dragging and released when you let go.
+/// - **Pan**: Click and drag on empty space to pan the view.
+/// - **Zoom**: Use pinch gestures (or scroll wheel) to zoom in and out.
+/// - **Inspector**: Click the toolbar button to show settings for display and physics.
+///
+/// ## Topics
+///
+/// ### Creating Views
+/// - ``init(graph:simulation:)``
+///
+/// ### Related Types
+/// - ``PopulationGraph``
+/// - ``GraphSimulation``
+/// - ``GraphDisplaySettings``
+/// - ``GraphInspectorView``
 public struct GraphView: View {
-    @Bindable var simulation: GraphSimulation
-    @State private var isInitialized = false
 
-    // Display settings (observable)
+    /// The simulation that manages node positions.
+    @Bindable var simulation: GraphSimulation
+
+    @State private var isInitialized = false
     @State private var settings = GraphDisplaySettings()
     @State private var showInspector = false
-
-    // Pan and zoom state (transient, not in settings)
     @State private var currentPan: CGSize = .zero
     @State private var currentScale: CGFloat = 1.0
-
-    // Node dragging state
     @State private var draggedNodeIndex: Int? = nil
     @State private var canvasSize: CGSize = .zero
 
+    /// The graph data to display.
     let graph: PopulationGraph
 
+    /// Creates a new graph view.
+    ///
+    /// The view automatically loads the graph into the simulation and starts
+    /// the simulation when it appears.
+    ///
+    /// - Parameters:
+    ///   - graph: The graph data to display.
+    ///   - simulation: The simulation that manages node positions.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let graph = PopulationGraph.triangleGraph
+    /// let simulation = GraphSimulation()
+    ///
+    /// GraphView(graph: graph, simulation: simulation)
+    ///     .frame(width: 800, height: 600)
+    /// ```
     public init(graph: PopulationGraph, simulation: GraphSimulation) {
         self.simulation = simulation
         self.graph = graph
@@ -39,7 +100,6 @@ public struct GraphView: View {
 
     // MARK: - Coordinate Conversion
 
-    /// Convert screen coordinates to simulation coordinates (accounting for pan/zoom)
     private func screenToSimulation(_ point: CGPoint, in size: CGSize) -> SIMD2<Float> {
         let totalScale = settings.scale * currentScale
         let totalPan = CGSize(
@@ -47,15 +107,12 @@ public struct GraphView: View {
             height: settings.panOffset.height + currentPan.height
         )
 
-        // Reverse the transforms: remove pan, then scale, relative to center
         let x = (point.x - size.width / 2) / totalScale + size.width / 2 - totalPan.width
         let y = (point.y - size.height / 2) / totalScale + size.height / 2 - totalPan.height
 
-        // Convert from canvas coords (centered at size/2) to simulation coords (centered at 0)
         return SIMD2<Float>(Float(x) - Float(size.width / 2), Float(y) - Float(size.height / 2))
     }
 
-    /// Find the node index nearest to a simulation position, within a threshold
     private func findNode(near simPos: SIMD2<Float>, threshold: Float = GraphConstants.defaultNodeFindThreshold) -> Int? {
         var closestIndex: Int? = nil
         var closestDist: Float = threshold
@@ -66,7 +123,6 @@ public struct GraphView: View {
             let nodePos = simulation.state[position: index]
             let dist = simd_distance(nodePos, simPos)
 
-            // Use the node's radius as part of the hit detection
             let hitRadius = max(Float(node.size / 2), threshold)
             if dist < hitRadius && dist < closestDist {
                 closestIndex = index
@@ -81,7 +137,6 @@ public struct GraphView: View {
     private func applySimulationSettings() {
         simulation.config.manyBodyStrength = settings.repulsionStrength
         simulation.config.centerStrength = settings.centerStrength
-        // Reheat to apply changes
         simulation.reheat(to: GraphConstants.moderateReheatAlpha)
     }
 
@@ -92,7 +147,6 @@ public struct GraphView: View {
             .onChanged { value in
                 let simPos = screenToSimulation(value.location, in: canvasSize)
 
-                // On first movement, determine if we're dragging a node or panning
                 if value.translation == .zero || (draggedNodeIndex == nil && currentPan == .zero) {
                     if let nodeIdx = findNode(near: screenToSimulation(value.startLocation, in: canvasSize)) {
                         draggedNodeIndex = nodeIdx
@@ -104,21 +158,17 @@ public struct GraphView: View {
                 }
 
                 if let nodeIdx = draggedNodeIndex {
-                    // Dragging a node
                     simulation.pin(nodeAt: nodeIdx, to: simPos)
                 } else {
-                    // Panning the canvas
                     currentPan = value.translation
                 }
             }
             .onEnded { value in
                 if let nodeIdx = draggedNodeIndex {
-                    // Release the node - unpin and let it settle
                     simulation.unpin(nodeAt: nodeIdx)
                     simulation.reheat(to: GraphConstants.reheatAlphaValue)
                     draggedNodeIndex = nil
                 } else {
-                    // Commit pan
                     settings.panOffset = CGSize(
                         width: settings.panOffset.width + value.translation.width,
                         height: settings.panOffset.height + value.translation.height
@@ -143,17 +193,14 @@ public struct GraphView: View {
         VStack {
             TimelineView(.animation(minimumInterval: GraphConstants.frameInterval, paused: !simulation.isRunning)) { timeline in
                 Canvas { context, size in
-                    // Capture canvas size for gesture coordinate conversion
                     DispatchQueue.main.async {
                         if canvasSize != size {
                             canvasSize = size
                         }
                     }
 
-                    // Trigger simulation tick
                     simulation.tick()
 
-                    // Apply pan and zoom transforms
                     let totalScale = settings.scale * currentScale
                     let totalPan = CGSize(
                         width: settings.panOffset.width + currentPan.width,
@@ -161,7 +208,6 @@ public struct GraphView: View {
                     )
 
                     var transformedContext = context
-                    // Translate to center, apply scale, translate back, then apply pan
                     transformedContext.translateBy(x: size.width / 2, y: size.height / 2)
                     transformedContext.scaleBy(x: totalScale, y: totalScale)
                     transformedContext.translateBy(x: -size.width / 2, y: -size.height / 2)
@@ -199,7 +245,6 @@ public struct GraphView: View {
                         let nodeColor = settings.nodeColorOverride ?? node.color
                         transformedContext.fill(Circle().path(in: rect), with: .color(nodeColor))
 
-                        // Draw label if enabled
                         if settings.showLabels {
                             let labelOffset: CGFloat = radius + GraphConstants.labelOffset
                             let labelPoint = CGPoint(

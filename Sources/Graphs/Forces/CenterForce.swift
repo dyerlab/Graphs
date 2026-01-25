@@ -10,11 +10,47 @@
 //  Copyright (c) 2021-2026 Administravia LLC.  All Rights Reserved.
 //
 
-
 import simd
 
-/// Pulls nodes toward center to prevent drift.
-/// Computes the centroid of all nodes and shifts velocities to move toward center.
+/// Applies a centering force that pulls the graph's centroid toward a target point.
+///
+/// This force prevents the graph from drifting away from the visible area by
+/// gently nudging all nodes so their centroid moves toward the center.
+///
+/// ## Overview
+///
+/// The center force computes the centroid (average position) of all nodes and
+/// applies a velocity adjustment to move that centroid toward the target center.
+/// This keeps the graph roughly centered in the view.
+///
+/// ## Behavior
+///
+/// Unlike other forces that operate on individual nodes, the center force operates
+/// on the graph as a whole. It doesn't change the relative positions of nodes;
+/// it only translates the entire graph.
+///
+/// ## Complexity
+///
+/// O(N) where N is the number of nodes.
+///
+/// - Parameters:
+///   - state: The simulation state to modify. Velocities are updated in place.
+///   - center: The target center point. Defaults to the origin (0, 0).
+///   - strength: How strongly to pull toward the center. Higher values cause
+///     faster centering but may cause oscillation. Defaults to 0.1.
+///
+/// ## Example
+///
+/// ```swift
+/// // Center at origin with default strength
+/// applyCenterForce(to: &state)
+///
+/// // Center at a specific point
+/// applyCenterForce(to: &state, center: SIMD2(100, 100))
+///
+/// // Stronger centering
+/// applyCenterForce(to: &state, strength: 0.3)
+/// ```
 public func applyCenterForce(
     to state: inout SimulationState,
     center: SIMD2<Float> = .zero,

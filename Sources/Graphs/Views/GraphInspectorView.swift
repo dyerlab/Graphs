@@ -12,11 +12,71 @@
 
 import SwiftUI
 
-/// Inspector panel for adjusting graph display and simulation settings.
+/// An inspector panel for adjusting graph display and simulation settings.
+///
+/// `GraphInspectorView` provides a form-based interface for modifying
+/// ``GraphDisplaySettings``. It's typically shown as a sidebar or sheet
+/// alongside a ``GraphView``.
+///
+/// ## Overview
+///
+/// The inspector is organized into sections:
+/// - **Display**: Visual settings like node size, labels, and colors
+/// - **Physics**: Simulation parameters like repulsion and centering
+/// - **Reset**: Buttons to restore default values
+///
+/// ## Usage
+///
+/// The inspector is automatically integrated into ``GraphView`` and can be
+/// shown via the toolbar button. You can also use it standalone:
+///
+/// ```swift
+/// struct MyView: View {
+///     @State private var settings = GraphDisplaySettings()
+///
+///     var body: some View {
+///         HStack {
+///             GraphInspectorView(settings: settings) {
+///                 // Apply settings to simulation
+///                 simulation.config.manyBodyStrength = settings.repulsionStrength
+///                 simulation.reheat()
+///             }
+///             // Your graph view
+///         }
+///     }
+/// }
+/// ```
+///
+/// ## Topics
+///
+/// ### Creating Inspectors
+/// - ``init(settings:onApplySimulationChanges:)``
 public struct GraphInspectorView: View {
+
+    /// The settings to display and modify.
     @Bindable var settings: GraphDisplaySettings
+
+    /// Optional callback invoked when physics settings change.
+    ///
+    /// Use this to apply changes to the simulation, such as updating
+    /// ``SimulationConfig`` values and reheating.
     var onApplySimulationChanges: (() -> Void)?
 
+    /// Creates a new inspector view.
+    ///
+    /// - Parameters:
+    ///   - settings: The settings to display and modify.
+    ///   - onApplySimulationChanges: Optional callback invoked when physics
+    ///     settings change. Use this to apply changes to the simulation.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// GraphInspectorView(settings: settings) {
+    ///     simulation.config.manyBodyStrength = settings.repulsionStrength
+    ///     simulation.reheat(to: 0.5)
+    /// }
+    /// ```
     public init(settings: GraphDisplaySettings, onApplySimulationChanges: (() -> Void)? = nil) {
         self.settings = settings
         self.onApplySimulationChanges = onApplySimulationChanges
@@ -122,7 +182,6 @@ public struct GraphInspectorView: View {
         .formStyle(.grouped)
     }
 
-    /// Binding that converts optional Color to non-optional for ColorPicker
     private var nodeColorBinding: Binding<Color> {
         Binding(
             get: { settings.nodeColorOverride ?? .blue },

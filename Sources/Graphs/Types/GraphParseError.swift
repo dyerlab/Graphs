@@ -13,14 +13,83 @@
 import Foundation
 
 /// Errors that can occur when parsing a graph file.
+///
+/// `GraphParseError` provides detailed information about parsing failures,
+/// including line numbers and content where applicable. All cases provide
+/// localized error descriptions.
+///
+/// ## Overview
+///
+/// Graph files use a simple text format:
+/// 1. Header line with node count and edge count
+/// 2. Node lines with label, size, and color code
+/// 3. Edge lines with source label, target label, and distance
+///
+/// ## Example
+///
+/// ```swift
+/// do {
+///     let graph = try parseGraph(content)
+/// } catch let error as GraphParseError {
+///     print(error.errorDescription ?? "Unknown error")
+/// }
+/// ```
+///
+/// ## Topics
+///
+/// ### Error Cases
+/// - ``invalidHeader``
+/// - ``invalidNodeLine(_:_:)``
+/// - ``invalidEdgeLine(_:_:)``
+/// - ``nodeMismatch(expected:found:)``
+/// - ``edgeMismatch(expected:found:)``
+/// - ``fileNotFound(_:)``
 public enum GraphParseError: Error, LocalizedError {
+
+    /// The file header is missing or malformed.
+    ///
+    /// The header must contain at least two whitespace-separated integers:
+    /// the node count and edge count.
     case invalidHeader
+
+    /// A node definition line is malformed.
+    ///
+    /// - Parameters:
+    ///   - line: The 1-based line number where the error occurred.
+    ///   - content: The content of the malformed line.
+    ///
+    /// Node lines must contain: `label size colorCode`
     case invalidNodeLine(Int, String)
+
+    /// An edge definition line is malformed.
+    ///
+    /// - Parameters:
+    ///   - line: The 1-based line number where the error occurred.
+    ///   - content: The content of the malformed line.
+    ///
+    /// Edge lines must contain: `sourceLabel targetLabel distance`
     case invalidEdgeLine(Int, String)
+
+    /// The actual node count doesn't match the header.
+    ///
+    /// - Parameters:
+    ///   - expected: The count declared in the header.
+    ///   - found: The actual number of node lines found.
     case nodeMismatch(expected: Int, found: Int)
+
+    /// The actual edge count doesn't match the header.
+    ///
+    /// - Parameters:
+    ///   - expected: The count declared in the header.
+    ///   - found: The actual number of edge lines found.
     case edgeMismatch(expected: Int, found: Int)
+
+    /// The specified file could not be found.
+    ///
+    /// - Parameter path: The path or identifier of the missing file.
     case fileNotFound(String)
 
+    /// A localized description of the error.
     public var errorDescription: String? {
         switch self {
         case .invalidHeader:
