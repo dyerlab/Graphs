@@ -2,7 +2,7 @@ import SwiftUI
 import simd
 
 /// A SwiftUI view that renders a force-directed graph.
-public struct ForceDirectedGraphView<ID: Hashable>: View {
+public struct GraphView<ID: Hashable & Sendable>: View {
     @Bindable var simulation: GraphSimulation
     @State private var isInitialized = false
 
@@ -18,12 +18,12 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
     @State private var draggedNodeIndex: Int? = nil
     @State private var canvasSize: CGSize = .zero
 
-    let nodes: [GraphNode<ID>]
+    let nodes: [Node<ID>]
     let edges: [(source: ID, target: ID, distance: Float)]
 
     public init(
         simulation: GraphSimulation,
-        nodes: [GraphNode<ID>],
+        nodes: [Node<ID>],
         edges: [(source: ID, target: ID, distance: Float)]
     ) {
         self.simulation = simulation
@@ -34,7 +34,7 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
     /// Convenience initializer with default edge distances.
     public init(
         simulation: GraphSimulation,
-        nodes: [GraphNode<ID>],
+        nodes: [Node<ID>],
         edges: [(source: ID, target: ID)],
         defaultDistance: Float = 30.0
     ) {
@@ -237,6 +237,7 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
             }
 
             // Toolbar
+            /*
             HStack {
                 Button(action: {
                     showInspector.toggle()
@@ -259,6 +260,7 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
                 })
             }
             .buttonStyle(.borderedProminent)
+             */
         }
         .padding()
         .inspector(isPresented: $showInspector) {
@@ -266,6 +268,15 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
                 applySimulationSettings()
             }
             .inspectorColumnWidth(min: 280, ideal: 300, max: 350)
+        }
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button(action: {
+                    showInspector.toggle()
+                }, label: {
+                    Image(systemName: "slider.horizontal.3")
+                })
+            }
         }
     }
 }
@@ -275,9 +286,9 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
 #Preview("Simple Triangle") {
     let simulation = GraphSimulation()
     let nodes = [
-        GraphNode(id: "A", label: "A", size: 20, color: .red),
-        GraphNode(id: "B", label: "B", size: 20, color: .green),
-        GraphNode(id: "C", label: "C", size: 20, color: .blue)
+        Node(id: "A", label: "A", size: 20, color: .red),
+        Node(id: "B", label: "B", size: 20, color: .green),
+        Node(id: "C", label: "C", size: 20, color: .blue)
     ]
     let edges: [(source: String, target: String, distance: Float)] = [
         ("A", "B", 50),
@@ -285,7 +296,7 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
         ("C", "A", 50)
     ]
 
-    return ForceDirectedGraphView(
+    return GraphView(
         simulation: simulation,
         nodes: nodes,
         edges: edges
@@ -296,16 +307,16 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
 
 #Preview("Star Graph") {
     let simulation = GraphSimulation()
-    let center = GraphNode(id: "center", label: "Center", size: 30, color: .orange)
+    let center = Node(id: "center", label: "Center", size: 30, color: .orange)
     let satellites = (1...6).map { i in
-        GraphNode(id: "node\(i)", label: "N\(i)", size: 15, color: .blue)
+        Node(id: "node\(i)", label: "N\(i)", size: 15, color: .blue)
     }
     let nodes = [center] + satellites
     let edges: [(source: String, target: String, distance: Float)] = satellites.map { satellite in
         ("center", satellite.id, Float(40))
     }
 
-    return ForceDirectedGraphView(
+    return GraphView(
         simulation: simulation,
         nodes: nodes,
         edges: edges
@@ -322,11 +333,11 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
         return AnyView(Text("Failed to load vcu.pgraph"))
     }
 
-    let nodes = data.graphNodes()
+    let nodes = data.nodes
     let edges = data.edges
 
     return AnyView(
-        ForceDirectedGraphView(
+        GraphView(
             simulation: simulation,
             nodes: nodes,
             edges: edges
@@ -335,3 +346,4 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
         .background(Color.black.opacity(0.05))
     )
 }
+

@@ -1,7 +1,11 @@
 import Foundation
+import SwiftUI
 
 /// Import a .pgraph file from a string.
-public func parseGraph(_ content: String) throws -> GraphData {
+public func parseGraph(
+    _ content: String,
+    colorMapping: (Int) -> Color = defaultColorMapping
+) throws -> GraphData {
     let lines = content.components(separatedBy: .newlines)
         .map { $0.trimmingCharacters(in: .whitespaces) }
         .filter { !$0.isEmpty }
@@ -18,7 +22,7 @@ public func parseGraph(_ content: String) throws -> GraphData {
         throw GraphParseError.invalidHeader
     }
 
-    var nodes: [Node] = []
+    var nodes: [Node<String>] = []
     var edges: [(source: String, target: String, distance: Float)] = []
 
     // Parse nodes (lines 1 to nodeCount)
@@ -35,7 +39,12 @@ public func parseGraph(_ content: String) throws -> GraphData {
         }
 
         let label = String(parts[0])
-        nodes.append(Node(label: label, size: size, colorCode: colorCode))
+        nodes.append(Node(
+            id: label,
+            label: label,
+            size: size,
+            color: colorMapping(colorCode)
+        ))
     }
 
     // Parse edges (lines nodeCount+1 to end)
@@ -61,22 +70,31 @@ public func parseGraph(_ content: String) throws -> GraphData {
 }
 
 /// Import a graph file from a URL.
-public func loadGraph(from url: URL) throws -> GraphData {
+public func loadGraph(
+    from url: URL,
+    colorMapping: (Int) -> Color = defaultColorMapping
+) throws -> GraphData {
     let content = try String(contentsOf: url, encoding: .utf8)
-    return try parseGraph(content)
+    return try parseGraph(content, colorMapping: colorMapping)
 }
 
 /// Import a graph file from a file path.
-public func loadGraph(fromPath path: String) throws -> GraphData {
+public func loadGraph(
+    fromPath path: String,
+    colorMapping: (Int) -> Color = defaultColorMapping
+) throws -> GraphData {
     let url = URL(fileURLWithPath: path)
-    return try loadGraph(from: url)
+    return try loadGraph(from: url, colorMapping: colorMapping)
 }
 
 /// Load a graph file bundled with the Graphs module.
 /// - Parameter name: The filename without extension (e.g., "vcu" for "vcu.pgraph")
-public func loadBundledGraph(named name: String) throws -> GraphData {
+public func loadBundledGraph(
+    named name: String,
+    colorMapping: (Int) -> Color = defaultColorMapping
+) throws -> GraphData {
     guard let url = Bundle.module.url(forResource: name, withExtension: "pgraph", subdirectory: "Data") else {
         throw GraphParseError.fileNotFound("\(name).pgraph in bundle")
     }
-    return try loadGraph(from: url)
+    return try loadGraph(from: url, colorMapping: colorMapping)
 }

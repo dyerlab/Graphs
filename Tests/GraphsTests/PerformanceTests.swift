@@ -4,11 +4,11 @@ import Foundation
 
 @Test @MainActor func performanceVCUGraph() async throws {
     let graphData = try loadBundledGraph(named: "vcu")
-    let graphNodes = graphData.graphNodes()
+    let nodes = graphData.nodes
     let edges = graphData.edges
 
     let simulation = GraphSimulation()
-    simulation.setNodes(graphNodes.map(\.id))
+    simulation.setNodes(nodes.map(\.id))
     simulation.setEdges(edges)
     simulation.start()
 

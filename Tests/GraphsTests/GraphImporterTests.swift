@@ -20,11 +20,11 @@ import simd
 
     #expect(data.nodes[0].label == "nodeA")
     #expect(data.nodes[0].size == 10.5)
-    #expect(data.nodes[0].colorCode == 1)
+    #expect(data.nodes[0].color == .blue) // colorCode 1 -> blue
 
     #expect(data.nodes[1].label == "nodeB")
     #expect(data.nodes[1].size == 8.0)
-    #expect(data.nodes[1].colorCode == 2)
+    #expect(data.nodes[1].color == .green) // colorCode 2 -> green
 
     #expect(data.edges[0].source == "nodeA")
     #expect(data.edges[0].target == "nodeB")
@@ -47,7 +47,7 @@ import simd
     }
 }
 
-@Test func graphDataConvertsToGraphNodes() async throws {
+@Test func parseGraphWithEdges() async throws {
     let content = """
     2    1
     alpha    12.0    1
@@ -56,12 +56,12 @@ import simd
     """
 
     let data = try parseGraph(content)
-    let graphNodes = data.graphNodes()
 
-    #expect(graphNodes.count == 2)
-    #expect(graphNodes[0].id == "alpha")
-    #expect(graphNodes[0].label == "alpha")
-    #expect(graphNodes[0].size == 12.0)
+    #expect(data.nodes.count == 2)
+    #expect(data.nodes[0].id == "alpha")
+    #expect(data.nodes[0].label == "alpha")
+    #expect(data.nodes[0].size == 12.0)
+    #expect(data.nodes[0].color == .blue)
 
     #expect(data.edges.count == 1)
     #expect(data.edges[0].source == "alpha")
@@ -78,7 +78,7 @@ import simd
     // Check a known node
     let anthro = data.nodes.first { $0.label == "anthro" }
     #expect(anthro != nil)
-    #expect(anthro?.colorCode == 1)
+    #expect(anthro?.color == .blue) // colorCode 1 -> blue
 
     // Check a known edge
     let edge = data.edges.first { $0.source == "anthro" && $0.target == "envs" }
@@ -88,12 +88,12 @@ import simd
 
 @Test @MainActor func simulateVCUGraph() async throws {
     let graphData = try loadBundledGraph(named: "vcu")
-    let graphNodes = graphData.graphNodes()
+    let nodes = graphData.nodes
     let edges = graphData.edges
 
     // Create simulation
     let simulation = GraphSimulation()
-    simulation.setNodes(graphNodes.map(\.id))
+    simulation.setNodes(nodes.map(\.id))
     simulation.setEdges(edges)
 
     #expect(simulation.state.nodeCount == 44)
