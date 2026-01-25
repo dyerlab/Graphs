@@ -1,7 +1,7 @@
 import Foundation
 
-/// Errors that can occur when parsing a .pgraph file.
-public enum PGraphParseError: Error, LocalizedError {
+/// Errors that can occur when parsing a graph file.
+public enum GraphParseError: Error, LocalizedError {
     case invalidHeader
     case invalidNodeLine(Int, String)
     case invalidEdgeLine(Int, String)

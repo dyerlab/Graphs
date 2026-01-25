@@ -38,28 +38,28 @@ public final class GraphSimulation {
         randomizePositions()
     }
 
-    /// Set the links between nodes.
-    /// Links reference nodes by their IDs; invalid references are ignored.
-    public func setLinks<ID: Hashable>(
+    /// Set the edges between nodes.
+    /// Edges reference nodes by their IDs; invalid references are ignored.
+    public func setEdges<ID: Hashable>(
         _ edges: [(source: ID, target: ID, distance: Float)]
     ) {
-        state.links = edges.compactMap { edge in
+        state.edges = edges.compactMap { edge in
             guard let source = nodeIndex[AnyHashable(edge.source)],
                   let target = nodeIndex[AnyHashable(edge.target)] else {
                 return nil
             }
-            return Link(source: source, target: target, distance: edge.distance)
+            return Edge(source: source, target: target, distance: edge.distance)
         }
     }
 
-    /// Set links with default distance.
-    public func setLinks<ID: Hashable>(_ edges: [(source: ID, target: ID)]) {
-        state.links = edges.compactMap { edge in
+    /// Set edges with default distance.
+    public func setEdges<ID: Hashable>(_ edges: [(source: ID, target: ID)]) {
+        state.edges = edges.compactMap { edge in
             guard let source = nodeIndex[AnyHashable(edge.source)],
                   let target = nodeIndex[AnyHashable(edge.target)] else {
                 return nil
             }
-            return Link(source: source, target: target)
+            return Edge(source: source, target: target)
         }
     }
 
@@ -101,7 +101,7 @@ public final class GraphSimulation {
             strength: config.manyBodyStrength,
             minDistance: config.manyBodyMinDistance
         )
-        applyLinkForce(to: &state)
+        applyEdgeForce(to: &state)
         applyCenterForce(to: &state, strength: config.centerStrength)
         applyCollideForce(
             to: &state,

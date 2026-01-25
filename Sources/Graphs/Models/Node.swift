@@ -1,7 +1,7 @@
 import Foundation
 
-/// Represents a parsed node from a .pgraph file.
-public struct PGraphNode: Sendable, Equatable, Hashable, Identifiable {
+/// Represents a parsed node from a graph file.
+public struct Node: Sendable, Equatable, Hashable, Identifiable {
     public var id: String { label }
     public let label: String
     public let size: Double

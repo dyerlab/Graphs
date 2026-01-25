@@ -5,18 +5,14 @@ import simd
 public struct ForceDirectedGraphView<ID: Hashable>: View {
     @Bindable var simulation: GraphSimulation
     @State private var isInitialized = false
-    @State var showLabels: Bool = true
 
-    // Pan and zoom state
-    @State private var panOffset: CGSize = .zero
+    // Display settings (observable)
+    @State private var settings = GraphDisplaySettings()
+    @State private var showInspector = false
+
+    // Pan and zoom state (transient, not in settings)
     @State private var currentPan: CGSize = .zero
-    @State private var scale: CGFloat = 1.0
     @State private var currentScale: CGFloat = 1.0
-    
-    // Node and Edge Zooming
-    @State private var nodeScaleFactor: CGFloat = 1.0
-    @State private var fontScaleFactor: CGFloat = 1.0
-    @State private var edgeScaleFactor: CGFloat = 1.0 
 
     // Node dragging state
     @State private var draggedNodeIndex: Int? = nil
@@ -25,7 +21,6 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
     let nodes: [GraphNode<ID>]
     let edges: [(source: ID, target: ID, distance: Float)]
 
-    
     public init(
         simulation: GraphSimulation,
         nodes: [GraphNode<ID>],
@@ -52,10 +47,10 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
 
     /// Convert screen coordinates to simulation coordinates (accounting for pan/zoom)
     private func screenToSimulation(_ point: CGPoint, in size: CGSize) -> SIMD2<Float> {
-        let totalScale = scale * currentScale
+        let totalScale = settings.scale * currentScale
         let totalPan = CGSize(
-            width: panOffset.width + currentPan.width,
-            height: panOffset.height + currentPan.height
+            width: settings.panOffset.width + currentPan.width,
+            height: settings.panOffset.height + currentPan.height
         )
 
         // Reverse the transforms: remove pan, then scale, relative to center
@@ -86,6 +81,15 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
             }
         }
         return closestIndex
+    }
+
+    // MARK: - Simulation Updates
+
+    private func applySimulationSettings() {
+        simulation.config.manyBodyStrength = settings.repulsionStrength
+        simulation.config.centerStrength = settings.centerStrength
+        // Reheat to apply changes
+        simulation.reheat(to: 0.5)
     }
 
     // MARK: - Gestures
@@ -122,9 +126,9 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
                     draggedNodeIndex = nil
                 } else {
                     // Commit pan
-                    panOffset = CGSize(
-                        width: panOffset.width + value.translation.width,
-                        height: panOffset.height + value.translation.height
+                    settings.panOffset = CGSize(
+                        width: settings.panOffset.width + value.translation.width,
+                        height: settings.panOffset.height + value.translation.height
                     )
                     currentPan = .zero
                 }
@@ -137,14 +141,13 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
                 currentScale = value.magnification
             }
             .onEnded { value in
-                scale *= value.magnification
+                settings.scale *= value.magnification
                 currentScale = 1.0
             }
     }
 
     public var body: some View {
         VStack {
-            
             TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !simulation.isRunning)) { timeline in
                 Canvas { context, size in
                     // Capture canvas size for gesture coordinate conversion
@@ -158,10 +161,10 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
                     simulation.tick()
 
                     // Apply pan and zoom transforms
-                    let totalScale = scale * currentScale
+                    let totalScale = settings.scale * currentScale
                     let totalPan = CGSize(
-                        width: panOffset.width + currentPan.width,
-                        height: panOffset.height + currentPan.height
+                        width: settings.panOffset.width + currentPan.width,
+                        height: settings.panOffset.height + currentPan.height
                     )
 
                     var transformedContext = context
@@ -173,16 +176,17 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
 
                     let center = SIMD2<Float>(Float(size.width / 2), Float(size.height / 2))
 
-                    // Draw links
-                    for link in simulation.state.links {
-                        let from = simulation.state[position: link.source] + center
-                        let to = simulation.state[position: link.target] + center
+                    // Draw edges
+                    for edge in simulation.state.edges {
+                        let from = simulation.state[position: edge.source] + center
+                        let to = simulation.state[position: edge.target] + center
 
                         var path = Path()
                         path.move(to: CGPoint(x: CGFloat(from.x), y: CGFloat(from.y)))
                         path.addLine(to: CGPoint(x: CGFloat(to.x), y: CGFloat(to.y)))
 
-                        transformedContext.stroke(path, with: .color(.gray.opacity(0.5)), lineWidth: 1 / totalScale)
+                        let edgeWidth = settings.edgeScaleFactor / totalScale
+                        transformedContext.stroke(path, with: .color(.gray.opacity(0.5)), lineWidth: edgeWidth)
                     }
 
                     // Draw nodes and labels
@@ -191,27 +195,31 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
                               nodeIndex < simulation.state.nodeCount else { continue }
 
                         let pos = simulation.state[position: nodeIndex] + center
-                        let radius = node.size / 2
+                        let scaledSize = node.size * settings.nodeScaleFactor
+                        let radius = scaledSize / 2
                         let rect = CGRect(
                             x: CGFloat(pos.x) - radius,
                             y: CGFloat(pos.y) - radius,
-                            width: node.size * nodeScaleFactor,
-                            height: node.size * nodeScaleFactor
+                            width: scaledSize,
+                            height: scaledSize
                         )
-                        transformedContext.fill(Circle().path(in: rect), with: .color(node.color))
+
+                        let nodeColor = settings.nodeColorOverride ?? node.color
+                        transformedContext.fill(Circle().path(in: rect), with: .color(nodeColor))
 
                         // Draw label if enabled
-                        if showLabels {
+                        if settings.showLabels {
                             let labelOffset: CGFloat = radius + 2
                             let labelPoint = CGPoint(
                                 x: CGFloat(pos.x) + labelOffset,
                                 y: CGFloat(pos.y) - labelOffset
                             )
+
+                            let fontSize: CGFloat = 10 * settings.fontScaleFactor
                             let text = Text(node.label)
-                                .font(.caption2)
+                                .font(.system(size: fontSize))
                                 .foregroundColor(.primary)
                             transformedContext.draw(text, at: labelPoint, anchor: .bottomLeading)
-                                
                         }
                     }
                 }
@@ -224,40 +232,41 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
                 isInitialized = true
 
                 simulation.setNodes(nodes.map(\.id))
-                simulation.setLinks(edges)
+                simulation.setEdges(edges)
                 simulation.start()
             }
-            
+
+            // Toolbar
             HStack {
-                
                 Button(action: {
-                    showLabels.toggle()
+                    showInspector.toggle()
                 }, label: {
-                    Image(systemName: "text.bubble")
+                    Image(systemName: "slider.horizontal.3")
+                })
+
+                Button(action: {
+                    settings.showLabels.toggle()
+                }, label: {
+                    Image(systemName: settings.showLabels ? "text.bubble.fill" : "text.bubble")
                 })
 
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
-                        panOffset = .zero
-                        scale = 1.0
+                        settings.resetView()
                     }
                 }, label: {
                     Image(systemName: "arrow.counterclockwise")
-                })
-                
-                
-                
-                Stepper( value: $nodeScaleFactor,
-                         step: 0.1,
-                         label: {
-                    Text("Node Size")
                 })
             }
             .buttonStyle(.borderedProminent)
         }
         .padding()
-        
-
+        .inspector(isPresented: $showInspector) {
+            GraphInspectorView(settings: settings) {
+                applySimulationSettings()
+            }
+            .inspectorColumnWidth(min: 280, ideal: 300, max: 350)
+        }
     }
 }
 
@@ -309,12 +318,12 @@ public struct ForceDirectedGraphView<ID: Hashable>: View {
     let simulation = GraphSimulation()
 
     // Load VCU graph from bundle
-    guard let data = try? loadBundledPGraph(named: "vcu") else {
+    guard let data = try? loadBundledGraph(named: "vcu") else {
         return AnyView(Text("Failed to load vcu.pgraph"))
     }
 
     let nodes = data.graphNodes()
-    let edges = data.graphEdges()
+    let edges = data.edges
 
     return AnyView(
         ForceDirectedGraphView(

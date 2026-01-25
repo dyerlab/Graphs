@@ -1,12 +1,12 @@
 import Foundation
 import SwiftUI
 
-/// Result of parsing a .pgraph file.
-public struct PGraphData: Sendable {
-    public let nodes: [PGraphNode]
-    public let edges: [PGraphEdge]
+/// Result of parsing a graph file.
+public struct GraphData: Sendable {
+    public let nodes: [Node]
+    public let edges: [(source: String, target: String, distance: Float)]
 
-    public init(nodes: [PGraphNode], edges: [PGraphEdge]) {
+    public init(nodes: [Node], edges: [(source: String, target: String, distance: Float)]) {
         self.nodes = nodes
         self.edges = edges
     }
@@ -21,11 +21,6 @@ public struct PGraphData: Sendable {
                 color: colorMapping(node.colorCode)
             )
         }
-    }
-
-    /// Convert to edge tuples for the simulation.
-    public func graphEdges() -> [(source: String, target: String, distance: Float)] {
-        edges.map { ($0.source, $0.target, $0.distance) }
     }
 }
 

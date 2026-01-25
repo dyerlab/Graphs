@@ -9,7 +9,7 @@ import Testing
     #expect(state.y.count == 5)
     #expect(state.vx.count == 5)
     #expect(state.vy.count == 5)
-    #expect(state.links.isEmpty)
+    #expect(state.edges.isEmpty)
     #expect(state.alpha == 1.0)
 }
 
@@ -25,20 +25,20 @@ import Testing
     #expect(state[position: 1].y == 15)
 }
 
-@Test func linkInitialization() async throws {
-    let link = Link(source: 0, target: 1, strength: 0.5, distance: 50.0)
+@Test func edgeInitialization() async throws {
+    let edge = Edge(source: 0, target: 1, strength: 0.5, distance: 50.0)
 
-    #expect(link.source == 0)
-    #expect(link.target == 1)
-    #expect(link.strength == 0.5)
-    #expect(link.distance == 50.0)
+    #expect(edge.source == 0)
+    #expect(edge.target == 1)
+    #expect(edge.strength == 0.5)
+    #expect(edge.distance == 50.0)
 }
 
-@Test func linkDefaultValues() async throws {
-    let link = Link(source: 2, target: 3)
+@Test func edgeDefaultValues() async throws {
+    let edge = Edge(source: 2, target: 3)
 
-    #expect(link.strength == 1.0)
-    #expect(link.distance == 30.0)
+    #expect(edge.strength == 1.0)
+    #expect(edge.distance == 30.0)
 }
 
 @Test func manyBodyForceRepulsion() async throws {
@@ -56,14 +56,14 @@ import Testing
     #expect(state.vx[1] > 0)
 }
 
-@Test func linkForceAttraction() async throws {
+@Test func edgeForceAttraction() async throws {
     var state = SimulationState(nodeCount: 2)
     state[position: 0] = SIMD2(0, 0)
     state[position: 1] = SIMD2(100, 0) // Far apart
     state.alpha = 1.0
-    state.links = [Link(source: 0, target: 1, distance: 30.0)]
+    state.edges = [Edge(source: 0, target: 1, distance: 30.0)]
 
-    applyLinkForce(to: &state)
+    applyEdgeForce(to: &state)
 
     // Nodes should be pulled together
     // Node 0 should get positive vx (pulled right toward node 1)
@@ -111,19 +111,19 @@ import Testing
     #expect(simulation.index(of: "d") == nil)
 }
 
-@Test @MainActor func graphSimulationLinkManagement() async throws {
+@Test @MainActor func graphSimulationEdgeManagement() async throws {
     let simulation = GraphSimulation()
 
     simulation.setNodes(["a", "b", "c"])
-    simulation.setLinks([
+    simulation.setEdges([
         (source: "a", target: "b", distance: Float(50.0)),
         (source: "b", target: "c", distance: Float(30.0))
     ])
 
-    #expect(simulation.state.links.count == 2)
-    #expect(simulation.state.links[0].source == 0)
-    #expect(simulation.state.links[0].target == 1)
-    #expect(simulation.state.links[0].distance == 50.0)
+    #expect(simulation.state.edges.count == 2)
+    #expect(simulation.state.edges[0].source == 0)
+    #expect(simulation.state.edges[0].target == 1)
+    #expect(simulation.state.edges[0].distance == 50.0)
 }
 
 @Test @MainActor func graphSimulationPinUnpin() async throws {
@@ -146,7 +146,7 @@ import Testing
 @Test @MainActor func graphSimulationAlphaDecays() async throws {
     let simulation = GraphSimulation()
     simulation.setNodes(["a", "b", "c"])
-    simulation.setLinks([(source: "a", target: "b")])
+    simulation.setEdges([(source: "a", target: "b")])
 
     let initialAlpha = simulation.state.alpha
     simulation.start()

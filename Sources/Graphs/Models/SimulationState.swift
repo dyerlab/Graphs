@@ -16,7 +16,7 @@ public struct SimulationState: Sendable, Equatable {
     public var fixedY: [Float?]
 
     // Graph structure
-    public var links: [Link]
+    public var edges: [Edge]
 
     // Simulation activity level
     public var alpha: Float
@@ -30,7 +30,7 @@ public struct SimulationState: Sendable, Equatable {
         vy = [Float](repeating: 0, count: nodeCount)
         fixedX = [Float?](repeating: nil, count: nodeCount)
         fixedY = [Float?](repeating: nil, count: nodeCount)
-        links = []
+        edges = []
         alpha = 1.0
     }
 

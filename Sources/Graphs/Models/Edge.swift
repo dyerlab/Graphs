@@ -1,5 +1,7 @@
+import Foundation
+
 /// Represents an edge in the graph with spring properties.
-public struct Link: Sendable, Equatable, Hashable {
+public struct Edge: Sendable, Equatable, Hashable {
     /// Index of the source node
     public var source: Int
 

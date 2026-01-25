@@ -3,7 +3,7 @@ import Foundation
 import simd
 @testable import Graphs
 
-@Test func parsePGraphSimple() async throws {
+@Test func parseGraphSimple() async throws {
     let content = """
     3    2
     nodeA    10.5    1
@@ -13,7 +13,7 @@ import simd
     nodeB    nodeC    20.0
     """
 
-    let data = try parsePGraph(content)
+    let data = try parseGraph(content)
 
     #expect(data.nodes.count == 3)
     #expect(data.edges.count == 2)
@@ -31,23 +31,23 @@ import simd
     #expect(data.edges[0].distance == 15.0)
 }
 
-@Test func parsePGraphInvalidHeader() async throws {
+@Test func parseGraphInvalidHeader() async throws {
     let content = "invalid header"
 
-    #expect(throws: PGraphParseError.self) {
-        try parsePGraph(content)
+    #expect(throws: GraphParseError.self) {
+        try parseGraph(content)
     }
 }
 
-@Test func parsePGraphEmptyContent() async throws {
+@Test func parseGraphEmptyContent() async throws {
     let content = ""
 
-    #expect(throws: PGraphParseError.self) {
-        try parsePGraph(content)
+    #expect(throws: GraphParseError.self) {
+        try parseGraph(content)
     }
 }
 
-@Test func pGraphDataConvertsToGraphNodes() async throws {
+@Test func graphDataConvertsToGraphNodes() async throws {
     let content = """
     2    1
     alpha    12.0    1
@@ -55,7 +55,7 @@ import simd
     alpha    beta    10.0
     """
 
-    let data = try parsePGraph(content)
+    let data = try parseGraph(content)
     let graphNodes = data.graphNodes()
 
     #expect(graphNodes.count == 2)
@@ -63,15 +63,14 @@ import simd
     #expect(graphNodes[0].label == "alpha")
     #expect(graphNodes[0].size == 12.0)
 
-    let edges = data.graphEdges()
-    #expect(edges.count == 1)
-    #expect(edges[0].source == "alpha")
-    #expect(edges[0].target == "beta")
-    #expect(edges[0].distance == 10.0)
+    #expect(data.edges.count == 1)
+    #expect(data.edges[0].source == "alpha")
+    #expect(data.edges[0].target == "beta")
+    #expect(data.edges[0].distance == 10.0)
 }
 
-@Test func loadVCUPGraphFile() async throws {
-    let data = try loadBundledPGraph(named: "vcu")
+@Test func loadVCUGraphFile() async throws {
+    let data = try loadBundledGraph(named: "vcu")
 
     #expect(data.nodes.count == 44)
     #expect(data.edges.count == 78)
@@ -88,17 +87,17 @@ import simd
 }
 
 @Test @MainActor func simulateVCUGraph() async throws {
-    let pgraphData = try loadBundledPGraph(named: "vcu")
-    let graphNodes = pgraphData.graphNodes()
-    let edges = pgraphData.graphEdges()
+    let graphData = try loadBundledGraph(named: "vcu")
+    let graphNodes = graphData.graphNodes()
+    let edges = graphData.edges
 
     // Create simulation
     let simulation = GraphSimulation()
     simulation.setNodes(graphNodes.map(\.id))
-    simulation.setLinks(edges)
+    simulation.setEdges(edges)
 
     #expect(simulation.state.nodeCount == 44)
-    #expect(simulation.state.links.count == 78)
+    #expect(simulation.state.edges.count == 78)
 
     // Run simulation for a number of ticks
     simulation.start()
