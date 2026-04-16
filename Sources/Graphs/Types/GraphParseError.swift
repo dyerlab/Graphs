@@ -44,6 +44,7 @@ import Foundation
 /// - ``nodeMismatch(expected:found:)``
 /// - ``edgeMismatch(expected:found:)``
 /// - ``fileNotFound(_:)``
+/// - ``invalidJSON(_:)``
 public enum GraphParseError: Error, LocalizedError {
 
     /// The file header is missing or malformed.
@@ -89,6 +90,11 @@ public enum GraphParseError: Error, LocalizedError {
     /// - Parameter path: The path or identifier of the missing file.
     case fileNotFound(String)
 
+    /// The JSON content is malformed or missing required structure.
+    ///
+    /// - Parameter message: A description of what was wrong with the JSON.
+    case invalidJSON(String)
+
     /// A localized description of the error.
     public var errorDescription: String? {
         switch self {
@@ -104,6 +110,8 @@ public enum GraphParseError: Error, LocalizedError {
             return "Expected \(expected) edges but found \(found)"
         case .fileNotFound(let path):
             return "File not found: \(path)"
+        case .invalidJSON(let message):
+            return "Invalid JSON: \(message)"
         }
     }
 }
