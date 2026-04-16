@@ -228,7 +228,7 @@ public struct GraphView: View {
                         transformedContext.stroke(path, with: .color(.gray.opacity(0.5)), lineWidth: edgeWidth)
                     }
 
-                    // Draw nodes and labels
+                    // Draw nodes
                     for (index, node) in graph.nodes.enumerated() {
                         guard index < simulation.state.nodeCount else { continue }
 
@@ -244,8 +244,16 @@ public struct GraphView: View {
 
                         let nodeColor = settings.nodeColorOverride ?? node.color
                         transformedContext.fill(Circle().path(in: rect), with: .color(nodeColor))
+                    }
 
-                        if settings.showLabels {
+                    // Draw labels on top of all nodes and edges
+                    if settings.showLabels {
+                        for (index, node) in graph.nodes.enumerated() {
+                            guard index < simulation.state.nodeCount else { continue }
+
+                            let pos = simulation.state[position: index] + center
+                            let scaledSize = node.size * settings.nodeScaleFactor
+                            let radius = scaledSize / 2
                             let labelOffset: CGFloat = radius + GraphConstants.labelOffset
                             let labelPoint = CGPoint(
                                 x: CGFloat(pos.x) + labelOffset,
