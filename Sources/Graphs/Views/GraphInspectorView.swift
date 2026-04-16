@@ -156,6 +156,17 @@ public struct GraphInspectorView: View {
                     .onChange(of: settings.centerStrength) { _, _ in
                         onApplySimulationChanges?()
                     }
+
+                HStack {
+                    Text("Component Separation")
+                    Spacer()
+                    Text(String(format: "%.1f", settings.componentSeparationStrength))
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $settings.componentSeparationStrength, in: 0...5.0, step: 0.5)
+                    .onChange(of: settings.componentSeparationStrength) { _, _ in
+                        onApplySimulationChanges?()
+                    }
             }
 
             // MARK: - Reset Section

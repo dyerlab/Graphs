@@ -38,7 +38,7 @@
 /// ## Topics
 ///
 /// ### Creating Configurations
-/// - ``init(alphaTarget:alphaDecay:alphaMin:velocityDecay:manyBodyStrength:manyBodyMinDistance:centerStrength:collideRadius:collideStrength:)``
+/// - ``init(alphaTarget:alphaDecay:alphaMin:velocityDecay:manyBodyStrength:manyBodyMinDistance:centerStrength:collideRadius:collideStrength:componentSeparationStrength:)``
 /// - ``default``
 ///
 /// ### Alpha Parameters
@@ -57,6 +57,7 @@
 /// ### Collide Force
 /// - ``collideRadius``
 /// - ``collideStrength``
+/// - ``componentSeparationStrength``
 public struct SimulationConfig: Sendable, Equatable {
 
     /// The target alpha value that the simulation decays toward.
@@ -134,6 +135,15 @@ public struct SimulationConfig: Sendable, Equatable {
     /// The default value is 0.7.
     public var collideStrength: Float = 0.7
 
+    /// The strength of the repulsion force between disconnected components.
+    ///
+    /// When the graph has multiple disconnected components, this force pushes
+    /// their centroids apart to prevent them from collapsing onto each other.
+    /// Higher values increase the spacing between components.
+    ///
+    /// The default value is 1.0.
+    public var componentSeparationStrength: Float = 1.0
+
     /// Creates a new configuration with the specified parameters.
     ///
     /// All parameters have sensible defaults for typical graph visualization.
@@ -148,6 +158,7 @@ public struct SimulationConfig: Sendable, Equatable {
     ///   - centerStrength: Centering force strength. Defaults to 0.1.
     ///   - collideRadius: Collision detection radius. Defaults to 5.0.
     ///   - collideStrength: Collision response strength. Defaults to 0.7.
+    ///   - componentSeparationStrength: Repulsion between disconnected components. Defaults to 1.0.
     public init(
         alphaTarget: Float = 0.0,
         alphaDecay: Float = 0.02,
@@ -157,7 +168,8 @@ public struct SimulationConfig: Sendable, Equatable {
         manyBodyMinDistance: Float = 1.0,
         centerStrength: Float = 0.1,
         collideRadius: Float = 5.0,
-        collideStrength: Float = 0.7
+        collideStrength: Float = 0.7,
+        componentSeparationStrength: Float = 1.0
     ) {
         self.alphaTarget = alphaTarget
         self.alphaDecay = alphaDecay
@@ -168,6 +180,7 @@ public struct SimulationConfig: Sendable, Equatable {
         self.centerStrength = centerStrength
         self.collideRadius = collideRadius
         self.collideStrength = collideStrength
+        self.componentSeparationStrength = componentSeparationStrength
     }
 
     /// The default simulation configuration.

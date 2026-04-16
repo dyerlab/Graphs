@@ -71,6 +71,7 @@ public struct GraphView: View {
     @State private var currentScale: CGFloat = 1.0
     @State private var draggedNodeIndex: Int? = nil
     @State private var canvasSize: CGSize = .zero
+    @State private var hasOffscreenNodes: Bool = false
 
     /// The graph data to display.
     let graph: PopulationGraph
@@ -137,6 +138,7 @@ public struct GraphView: View {
     private func applySimulationSettings() {
         simulation.config.manyBodyStrength = settings.repulsionStrength
         simulation.config.centerStrength = settings.centerStrength
+        simulation.config.componentSeparationStrength = settings.componentSeparationStrength
         simulation.reheat(to: GraphConstants.moderateReheatAlpha)
     }
 
@@ -267,11 +269,49 @@ public struct GraphView: View {
                             transformedContext.draw(text, at: labelPoint, anchor: .bottomLeading)
                         }
                     }
+
+                    // Detect nodes outside the visible canvas area.
+                    // Screen position: screenX = (simX + panX) * scale + width/2
+                    var anyOffscreen = false
+                    let panX = Float(totalPan.width)
+                    let panY = Float(totalPan.height)
+                    let scale = Float(totalScale)
+                    let halfW = Float(size.width / 2)
+                    let halfH = Float(size.height / 2)
+                    for (index, node) in graph.nodes.enumerated() {
+                        guard index < simulation.state.nodeCount else { continue }
+                        let simX = simulation.state.x[index]
+                        let simY = simulation.state.y[index]
+                        let nodeR = Float(node.size * settings.nodeScaleFactor / 2)
+                        let screenX = (simX + panX) * scale + halfW
+                        let screenY = (simY + panY) * scale + halfH
+                        if screenX + nodeR < 0 || screenX - nodeR > Float(size.width) ||
+                           screenY + nodeR < 0 || screenY - nodeR > Float(size.height) {
+                            anyOffscreen = true
+                            break
+                        }
+                    }
+                    if anyOffscreen != hasOffscreenNodes {
+                        DispatchQueue.main.async { hasOffscreenNodes = anyOffscreen }
+                    }
                 }
             }
             .contentShape(Rectangle())
             .gesture(dragGesture)
             .gesture(zoomGesture)
+            .overlay(alignment: .topTrailing) {
+                if hasOffscreenNodes {
+                    Label("Nodes off screen", systemImage: "exclamationmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                        .padding(8)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: hasOffscreenNodes)
             .onAppear {
                 guard !isInitialized else { return }
                 isInitialized = true

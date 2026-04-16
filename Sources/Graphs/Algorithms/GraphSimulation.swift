@@ -342,7 +342,11 @@ public final class GraphSimulation {
             minDistance: config.manyBodyMinDistance
         )
         applyEdgeForce(to: &state)
-        applyCenterForce(to: &state, strength: config.centerStrength)
+        applyComponentCenterForce(
+            to: &state,
+            centerStrength: config.centerStrength,
+            separationStrength: config.componentSeparationStrength
+        )
         applyCollideForce(
             to: &state,
             radius: config.collideRadius,

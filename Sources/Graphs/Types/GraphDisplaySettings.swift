@@ -125,6 +125,15 @@ public final class GraphDisplaySettings {
     /// The default value is 0.1.
     public var centerStrength: Float = 0.1
 
+    /// The repulsion strength between disconnected components.
+    ///
+    /// Higher values push components further apart, reducing the chance of
+    /// visual overlap between clusters. Too high a value combined with a weak
+    /// ``centerStrength`` will allow components to drift toward the view edges.
+    ///
+    /// The default value is 1.0.
+    public var componentSeparationStrength: Float = 1.0
+
     /// The current pan offset of the view.
     ///
     /// This tracks how far the user has panned from the initial position.
@@ -158,6 +167,7 @@ public final class GraphDisplaySettings {
         repulsionStrength = -30.0
         linkStrength = 1.0
         centerStrength = 0.1
+        componentSeparationStrength = 1.0
     }
 
     /// Resets view settings to their default values.
