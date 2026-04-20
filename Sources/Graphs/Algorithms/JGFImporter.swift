@@ -31,7 +31,7 @@ import SwiftUI
 ///       "n2": { "label": "Beta",  "metadata": { "size": 15, "color": "blue" } }
 ///     },
 ///     "edges": [
-///       { "source": "n1", "target": "n2", "metadata": { "distance": 30, "weight": 1.0 } }
+///       { "source": "n1", "target": "n2", "metadata": { "weight": 30 } }
 ///     ]
 ///   }
 /// }
@@ -50,7 +50,7 @@ import SwiftUI
 ///       {
 ///         "name": "Generation 1",
 ///         "metadata": { "year": "1920" },
-///         "edges": [ { "source": "n1", "target": "n2", "metadata": { "distance": 30 } } ]
+///         "edges": [ { "source": "n1", "target": "n2", "metadata": { "weight": 30 } } ]
 ///       },
 ///       {
 ///         "name": "Generation 2",
@@ -70,9 +70,8 @@ import SwiftUI
 ///
 /// ## Edge Metadata
 ///
-/// The following keys in an edge's `metadata` object are mapped to ``Edge`` properties:
-/// - `"distance"`: A number mapped to ``Edge/distance``. Defaults to 30.0.
-/// - `"weight"`: A number mapped to ``Edge/weight``. Defaults to 1.0.
+/// The following key in an edge's `metadata` object is mapped to ``Edge`` properties:
+/// - `"weight"`: A number mapped to ``Edge/distance`` (the spring's characteristic rest length). Defaults to 30.0.
 ///
 /// ## Node Ordering
 ///
@@ -270,10 +269,9 @@ private func buildEdges(from jgfEdges: [JGFEdge], nodeIndexMap: [String: Int]) -
         guard let sourceIdx = nodeIndexMap[jgfEdge.source],
               let targetIdx = nodeIndexMap[jgfEdge.target] else { return nil }
 
-        let distance = Float(jgfEdge.metadata?["distance"]?.doubleValue ?? 30.0)
-        let weight = Float(jgfEdge.metadata?["weight"]?.doubleValue ?? 1.0)
+        let distance = Float(jgfEdge.metadata?["weight"]?.doubleValue ?? 30.0)
 
-        return Edge(source: sourceIdx, target: targetIdx, weight: weight, distance: distance)
+        return Edge(source: sourceIdx, target: targetIdx, distance: distance)
     }
 }
 

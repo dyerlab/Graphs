@@ -27,7 +27,7 @@ import Foundation
           "n3": { "label": "Gamma" }
         },
         "edges": [
-          { "source": "n1", "target": "n2", "metadata": { "distance": 40, "weight": 2.0 } },
+          { "source": "n1", "target": "n2", "metadata": { "weight": 40 } },
           { "source": "n2", "target": "n3" }
         ]
       }
@@ -61,9 +61,9 @@ import Foundation
     #expect(graph.nodes[e0.source].label == "Alpha")
     #expect(graph.nodes[e0.target].label == "Beta")
     #expect(e0.distance == 40.0)
-    #expect(e0.weight == 2.0)
+    #expect(e0.weight == 1.0)
 
-    // Second edge uses default distance and weight.
+    // Second edge uses default distance.
     let e1 = graph.edges[1]
     #expect(graph.nodes[e1.source].label == "Beta")
     #expect(graph.nodes[e1.target].label == "Gamma")
@@ -105,13 +105,13 @@ import Foundation
             "name": "Generation 1",
             "metadata": { "year": "1920" },
             "edges": [
-              { "source": "a", "target": "b", "metadata": { "distance": 25 } }
+              { "source": "a", "target": "b", "metadata": { "weight": 25 } }
             ]
           },
           {
             "name": "Generation 2",
             "edges": [
-              { "source": "a", "target": "b", "metadata": { "distance": 50 } },
+              { "source": "a", "target": "b", "metadata": { "weight": 50 } },
               { "source": "b", "target": "c" }
             ]
           }
