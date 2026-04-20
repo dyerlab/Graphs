@@ -16,6 +16,9 @@ Unlike standard graph libraries that use object-graph connections, **Graphs** us
 * **Performance-First Architecture:** Utilizes a **Structure-of-Arrays (SoA)** layout for simulation states, ensuring CPU cache efficiency during high-frequency physics updates.
 * **SwiftUI Integration:** Native `@Observable` and `@MainActor` support via `GraphSimulation` for seamless rendering in `GraphView`.
 * **Integer-Based Edges:** Edges reference nodes by integer indices (source/target) for $O(1)$ lookups, avoiding the overhead of object-reference traversal.
+* **Per-Component Centering:** Disconnected subgraphs each pull toward the global centroid independently, with inter-cluster repulsion to keep components from collapsing together.
+* **Off-Screen Indicator:** A "Nodes off screen" badge fades in automatically when any node drifts outside the visible canvas area.
+* **JSON Graph Format (JGF):** Import graphs from the standard [JSON Graph Format](https://jsongraphformat.info), including an extended form with multiple named edge sets.
 
 ## Project Structure
 
@@ -28,11 +31,14 @@ The package is organized into specialized modules to separate data modeling from
 
 ## Physics Engine
 
-The library implements a classic force-directed layout using standalone force functions:
+The library implements a classic force-directed layout using standalone force functions applied each tick in order:
+
 1.  **Many-Body Force**: $O(N^2)$ N-body repulsion.
 2.  **Edge Force**: $O(E)$ spring forces along edges.
-3.  **Center Force**: $O(N)$ pulls the centroid toward the center.
+3.  **Component Center Force**: per-component pull toward the global centroid, plus inverse-square repulsion between component centroids to prevent clusters from collapsing. Delegates to a simple center force for single-component graphs.
 4.  **Collision Force**: $O(N^2)$ prevents node overlap.
+
+Simulation energy is controlled by an alpha value (1.0 → 0.0). Call `simulation.reheat(to:)` to restart layout after graph mutations or drag interactions. The `GraphInspectorView` exposes sliders for repulsion, link strength, center pull, and component separation.
 
 ## Quick Start
 
@@ -62,7 +68,7 @@ DocC Documentation: All public APIs are fully documented for Swift DocC.
 
 - Standalone Forces: Force calculations are implemented as standalone functions rather than methods to maintain a clean separation of concerns.
 - Centralized Constants: Simulation and display defaults are managed in GraphConstants.
-- File Format: Supports the custom .pgraph specification via GraphImporter (see the [popgraph](https://github.com/dyerlab/popgraph) R library for more information on this format).
+- File Formats: Supports the custom `.pgraph` specification via `GraphImporter` (see the [popgraph](https://github.com/dyerlab/popgraph) R library) and the standard [JSON Graph Format (JGF)](https://jsongraphformat.info) via `JGFImporter`, including an extended multi-edge-set variant.
 
 
 ## Updates 
